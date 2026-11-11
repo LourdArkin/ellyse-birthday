@@ -83,6 +83,29 @@
   .msg { margin: 10px 0; line-height: 1.5; font-size: .92rem; text-align: center; }
   .era b { font-family: 'Playfair Display', serif; font-style: italic; color: #7a3a8f; }
 
+  /* Falling petals */
+  #petals { position: fixed; inset: 0; pointer-events: none; overflow: hidden; z-index: 40; }
+  .petal { position: absolute; top: -30px; background: linear-gradient(135deg, #ffd1e3, #ff8fbf); border-radius: 150% 0 150% 0; animation: fall linear infinite; }
+  @keyframes fall { 0% { transform: translate(0,-30px) rotate(0deg); } 100% { transform: translate(var(--sway,0px),110vh) rotate(540deg); } }
+
+  /* Message fades in line by line */
+  .reveal { transition: opacity .3s ease; }
+  .scene:not(.open) .reveal { opacity: 0; transform: translateY(10px); }
+  .scene.open .reveal { opacity: 1; transform: none; transition: opacity .7s ease, transform .7s ease; transition-delay: calc(var(--i, 0) * .3s + .9s); }
+
+  /* Birthday cake */
+  .cake { width: 120px; margin: 4px auto 0; cursor: pointer; }
+  .cake:focus-visible { outline: 3px solid #c9609a; outline-offset: 6px; border-radius: 8px; }
+  .candles { display: flex; justify-content: space-around; padding: 0 20px; height: 46px; align-items: flex-end; }
+  .candle { display: block; width: 7px; height: 22px; background: linear-gradient(#fff, #ffb3d1); border-radius: 2px; position: relative; }
+  .flame { position: absolute; left: 50%; top: -15px; width: 9px; height: 14px; margin-left: -4.5px; background: radial-gradient(ellipse at 50% 70%, #fff3b0, #ffb42e 60%, #ff7a2e); border-radius: 50% 50% 50% 50% / 60% 60% 40% 40%; transform-origin: 50% 100%; animation: flick .35s ease-in-out infinite alternate; transition: opacity .3s, transform .3s; }
+  @keyframes flick { from { transform: scale(1,1) rotate(-3deg); } to { transform: scale(.88,1.12) rotate(3deg); } }
+  .cake.out .flame { animation: none; opacity: 0; transform: scale(.2); }
+  .tier1 { width: 78%; height: 24px; margin: 0 auto; background: linear-gradient(#ff9ec7, #e0568f); border-radius: 8px 8px 3px 3px; box-shadow: inset 0 5px 0 rgba(255,255,255,.85); }
+  .tier2 { width: 100%; height: 30px; background: linear-gradient(#f6dc94, #e6b955); border-radius: 4px 4px 12px 12px; box-shadow: 0 6px 12px rgba(60,20,80,.25); }
+  .wish { text-align: center; font-size: .85rem; color: #a03a78; margin: 8px 0 14px; min-height: 1.2em; }
+  @media (prefers-reduced-motion: reduce) { .reveal { opacity: 1 !important; transform: none !important; transition: none !important; } .flame { animation: none; } }
+
   #confetti { position: fixed; inset: 0; width: 100%; height: 100%; pointer-events: none; z-index: 50; }
   @media (prefers-reduced-motion: reduce) { .star { animation: none; } .cover, .scene { transition-duration: .01s; } }
 </style>
@@ -90,6 +113,7 @@
 <body class="flex min-h-screen items-center justify-center p-4">
 <div id="stars" aria-hidden="true"></div>
 <canvas id="confetti" aria-hidden="true"></canvas>
+<div id="petals" aria-hidden="true"></div>
 
 <main class="scene" id="scene">
   <div class="card">
@@ -109,6 +133,11 @@
       <p class="text-center my-3" aria-hidden="true" style="color:#e6b955">✦ ✧ ✦</p>
 
       <div class="text-center">
+        <div class="cake" id="cake" role="button" tabindex="0" aria-label="Blow out the candles">
+          <div class="candles"><i class="candle"><b class="flame"></b></i><i class="candle"><b class="flame" style="animation-delay:.12s"></b></i><i class="candle"><b class="flame" style="animation-delay:.24s"></b></i></div>
+          <div class="tier1"></div><div class="tier2"></div>
+        </div>
+        <p class="wish" id="wish">Tap the candles to blow them out</p>
         <button class="btn btn-pink" id="confettiBtn" type="button">Throw the confetti 🎉</button>
       </div>
       <p class="script text-3xl text-center mt-4" style="color:#9a5fb8">With love, <span id="from">LNDK</span></p>
@@ -153,7 +182,7 @@
   // Card opening
   const scene = document.getElementById('scene');
   document.getElementById('openBtn').addEventListener('click', () => {
-    scene.classList.add('open');
+    scene.classList.add('open'); startPetals();
     setTimeout(() => burst(0.5), 900);
   });
 
@@ -194,7 +223,38 @@
     if (parts.length) requestAnimationFrame(tick); else running = false;
   }
   document.getElementById('confettiBtn').addEventListener('click', () => burst(1));
-  document.getElementById('closeBtn').addEventListener('click', () => scene.classList.remove('open'));
+  document.getElementById('closeBtn').addEventListener('click', () => { scene.classList.remove('open'); stopPetals(); relight(); });
+
+  // Falling petals while the card is open
+  const petalsEl = document.getElementById('petals');
+  function startPetals() {
+    if (matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+    petalsEl.innerHTML = '';
+    for (let i = 0; i < 18; i++) {
+      const p = document.createElement('span');
+      p.className = 'petal';
+      const s = Math.random() * 10 + 9;
+      p.style.cssText = `left:${Math.random()*100}%;width:${s}px;height:${s*1.3}px;animation-duration:${Math.random()*6+8}s;animation-delay:${Math.random()*8+1}s;--sway:${Math.random()*80-40}px;opacity:${Math.random()*.4+.5}`;
+      petalsEl.appendChild(p);
+    }
+  }
+  function stopPetals() { petalsEl.innerHTML = ''; }
+
+  // Messages fade in one after another
+  document.querySelectorAll('.inside > *').forEach((el, i) => { el.classList.add('reveal'); el.style.setProperty('--i', i); });
+
+  // Candles: tap to blow out, tap again to relight
+  const cake = document.getElementById('cake');
+  const wish = document.getElementById('wish');
+  function relight() { cake.classList.remove('out'); wish.textContent = 'Tap the candles to blow them out'; }
+  function toggleCandles() {
+    if (cake.classList.contains('out')) { relight(); return; }
+    cake.classList.add('out');
+    wish.textContent = 'Make a wish, Ellyse! ✨ (tap to relight)';
+    burst(0.8);
+  }
+  cake.addEventListener('click', toggleCandles);
+  cake.addEventListener('keydown', e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); toggleCandles(); } });
 </script>
 </body>
 </html>
